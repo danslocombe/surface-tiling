@@ -6,10 +6,6 @@ require 'matrix'
 require 'digest'
 
 
-$hash_i = 0
-def get_rand sample_size, max
-  max * $hash[$hash_i, $hash_i + sample_size].hex/(16**sample_size)
-end
 
 def min(*values)
  values.min
@@ -217,22 +213,44 @@ class Tiler
 
 
       points = ChunkyPNG::Vector.new([p1, p2, p4, p3])
-      #color = @colors[min_max_to_i face.min_axis, face.max_axis]
-      #image.polygon(points, ChunkyPNG::Color::TRANSPARENT, color) 
-      image.polygon(points, ChunkyPNG::Color.from_hsv(0, 0, 0),ChunkyPNG::Color.from_hsv(0, 0, 1))
+      color = @colors[min_max_to_i face.min_axis, face.max_axis]
+      image.polygon(points, ChunkyPNG::Color::TRANSPARENT, color) 
+      #image.polygon(points, ChunkyPNG::Color.from_hsv(0, 0, 0),ChunkyPNG::Color.from_hsv(0, 0, 1))
     end
+    puts "Saving image to #{filename}"
     image.save(filename, :interlace => false)
+  end
+  
+end
+def fromMD5 filename, hash
+    r = Hashrander.new(hash)
+    hue = r.get_rand 3, 360
+    s1 = 0.5 + (r.get_rand 2, 0.5)
+    TilerBuilder.new(filename).set_hue(hue).build
+end
+
+class Hashrander
+  def initialize hash
+    @hash_i = 0
+    @hash = hash
+  end
+
+  def get_rand sample_size, max
+    max * @hash[@hash_i, @hash_i + sample_size].hex/(16**sample_size)
   end
 end
 
-input = gets
 
-md5 = Digest::MD5.new
-md5 << input
-$hash = md5.hexdigest
+[
+'dan@3rdrock.uk', 
+'elliot@3rdrock.uk', 
+'pranav@3rdrock.uk', 
+'louis@3rdrock.uk'
+].each do |input|
 
-hue = get_rand 3, 360
-s1 = 0.5 + (get_rand 2, 0.5)
-#s2 = 0.5 + (s1*get_rand 2, 0.5)
+  md5 = Digest::MD5.new
+  md5 << input
+  hash = md5.hexdigest
 
-TilerBuilder.new('out/test2.png').set_hue(10).build
+  fromMD5 "out/hash/hash_#{hash}.png", hash
+end
