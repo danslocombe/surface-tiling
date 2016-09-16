@@ -33,7 +33,7 @@ $dirmultx = 1
 $dirmulty = 1
 
 class Face
-  def initialize(x, axis1, axis2, parent, children)
+  def initialize x, axis1, axis2
     @pos = x
     @a_min = min(axis1, axis2)
     @a_max = max(axis1, axis2)
@@ -56,7 +56,7 @@ class Face
         @a_min = 0
         @a_max = 1
 
-        ret = Face.new(@pos.clone, 1, 3, @parent, [self])
+        ret = Face.new(@pos.clone, 1, 3)
 
         a = @pos.to_a
         @pos = Vector[a[0] - $dirmultx, a[1], a[2], a[3] + $dirmultx]
@@ -70,7 +70,7 @@ class Face
         @a_min = 0
         @a_max = 2
 
-        ret = Face.new(@pos.clone, 2, 3, @parent, [self])
+        ret = Face.new(@pos.clone, 2, 3)
 
         a = @pos.to_a
         @pos = Vector[a[0] - $dirmultx, a[1], a[2], a[3] + $dirmultx]
@@ -97,14 +97,51 @@ class Face
   end
 end
 
-class Tiler
-  def initialize()
-    @global_xo = 0
-    @global_yo = 0
+class TilerFactory
 
+  def initialize filename
     @hue = 345#rand(360)
-    @h1 = @hue
-    @h2 = (@hue + 360/2) % 360
+    @image_width = 256
+    @image_height = 256
+    @ox = @image_width/2
+    @oy = @image_height/2
+    @scale = -24
+    @ticks = 22
+    @filename = filename
+    self
+  end
+  
+  def set_scale scale
+    @scale = scale
+    self
+  end
+
+  def set_hue hue
+    @hue = hue
+    self
+  end
+
+  def set_image_size width, height
+    @image_width = width
+    @image_height = height
+    self
+  end
+
+  def set_ticks ticks
+    @ticks = ticks
+  end
+
+  def create
+    t = Tiler.new(@image_width, @image_height, @scale, @hue)
+    t.tile(@ticks, @filename)
+  end
+end
+
+
+class Tiler
+  def initialize image_width, image_height, scale, hue
+    @h1 = hue
+    @h2 = (hue + 360/2) % 360
 
     @colors = [
       ChunkyPNG::Color.from_hsv(0, 0, 1),
@@ -115,16 +152,12 @@ class Tiler
       ChunkyPNG::Color.from_hsv(@h2, 0.75, 0.6)
     ]
 
-    @all_faces = []
-    @all_faces << Face.new(Vector[0, 0, 0, 0], 2, 3, nil, [])
 
-
-    @image_width = 256
-    @image_height = 256
+    @image_width = image_width
+    @image_height = image_height
     @ox = @image_width/2
     @oy = @image_height/2
-    @scale = -24
-
+    @scale = scale
     #e_1 = 1
     #e_2 = lambda
     #e_3 = lamdba^2
@@ -132,6 +165,7 @@ class Tiler
     #where lambda = 1.01891 + 0.602565i
     @canonical_x = [1, 1.01891, 0.675093, -0.0520420]
     @canonical_y = [0, 0.602565, 1.22792,  1.65793]
+    @all_faces = [Face.new(Vector[0, 0, 0, 0], 2, 3)]
   end
 
 
@@ -183,8 +217,9 @@ class Tiler
 
 
       points = ChunkyPNG::Vector.new([p1, p2, p4, p3])
-      color = @colors[min_max_to_i face.min_axis, face.max_axis]
-      image.polygon(points, ChunkyPNG::Color::TRANSPARENT, color) 
+      #color = @colors[min_max_to_i face.min_axis, face.max_axis]
+      #image.polygon(points, ChunkyPNG::Color::TRANSPARENT, color) 
+      image.polygon(points, ChunkyPNG::Color.from_hsv(0, 0, 0),ChunkyPNG::Color.from_hsv(0, 0, 1))
     end
     image.save(filename, :interlace => false)
   end
@@ -200,4 +235,4 @@ hue = get_rand 3, 360
 s1 = 0.5 + (get_rand 2, 0.5)
 #s2 = 0.5 + (s1*get_rand 2, 0.5)
 
-Tiler.new().tile(22, 'out/test1.png')
+TilerFactory.new('out/test2.png').set_hue(10).create
