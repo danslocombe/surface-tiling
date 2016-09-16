@@ -104,6 +104,9 @@ class TilerBuilder
     @scale = -24
     @ticks = 22
     @filename = filename
+    @sat_major = 1
+    @sat_minor = 0.8
+    @projection_lambda = Complex(1.01891, 0.602565)
     self
   end
   
@@ -117,6 +120,16 @@ class TilerBuilder
     self
   end
 
+  def set_sat_major s
+    @sat_major = s
+    self
+  end
+
+  def set_sat_minor s
+    @sat_minor = s
+    self
+  end
+
   def set_image_size width, height
     @image_width = width
     @image_height = height
@@ -125,27 +138,34 @@ class TilerBuilder
 
   def set_ticks ticks
     @ticks = ticks
+    self
+  end
+
+  def set_projection_lambda x, y
+    @projection_lambda = Complex(x, y)
+    self
   end
 
   def build
-    t = Tiler.new(@image_width, @image_height, @scale, @hue)
+    t = Tiler.new(@image_width, @image_height, @scale, @hue, @sat_major, 
+                  @sat_minor, @projection_lambda)
     t.tile(@ticks, @filename)
   end
 end
 
 
 class Tiler
-  def initialize image_width, image_height, scale, hue
+  def initialize image_width, image_height, scale, hue, sat_major, sat_minor, projection_lambda
     @h1 = hue
     @h2 = (hue + 360/2) % 360
 
     @colors = [
       ChunkyPNG::Color.from_hsv(0, 0, 1),
       ChunkyPNG::Color.from_hsv(0, 0.0, 1),
-      ChunkyPNG::Color.from_hsv(@h1, 0.8, 1),
-      ChunkyPNG::Color.from_hsv(@h2, 0.8, 1),
-      ChunkyPNG::Color.from_hsv(@h1, 0.75, 0.6),
-      ChunkyPNG::Color.from_hsv(@h2, 0.75, 0.6)
+      ChunkyPNG::Color.from_hsv(@h1, sat_major, 1),
+      ChunkyPNG::Color.from_hsv(@h2, sat_major, 1),
+      ChunkyPNG::Color.from_hsv(@h1, sat_minor, 0.6),
+      ChunkyPNG::Color.from_hsv(@h2, sat_minor, 0.6)
     ]
 
 
@@ -154,13 +174,14 @@ class Tiler
     @ox = @image_width/2
     @oy = @image_height/2
     @scale = scale
-    #e_1 = 1
-    #e_2 = lambda
-    #e_3 = lamdba^2
-    #e_3 = lamdba^3
-    #where lambda = 1.01891 + 0.602565i
-    @canonical_x = [1, 1.01891, 0.675093, -0.0520420]
-    @canonical_y = [0, 0.602565, 1.22792,  1.65793]
+
+    @canonical_x = []
+    @canonical_y = []
+    for i in 0..3 do
+      c = projection_lambda ** i
+      @canonical_x << c.real
+      @canonical_y << c.imaginary
+    end
     @all_faces = [Face.new(Vector[0, 0, 0, 0], 2, 3)]
   end
 
@@ -175,7 +196,6 @@ class Tiler
 
   def tile ticks, filename
     for i in 1 .. ticks
-      print "\nTick #{i}\n"
       new_list = []
       @all_faces.each do |face|
         new_list << face
@@ -195,7 +215,10 @@ class Tiler
     image = ChunkyPNG::Image.new(@image_width, @image_height, ChunkyPNG::Color::TRANSPARENT)
     #image[0, 0] = ChunkyPNG::Color.rgba(255, 0,0, 128)
 
-    @all_faces.each do |face|
+    puts "Drawing image"
+    @all_faces.each_with_index do |face, i|
+      print "Face #{i}\r"
+
       p1 = to_image_space (face.pos.to_a)
 
       p2_m = face.pos.to_a
@@ -217,7 +240,7 @@ class Tiler
       image.polygon(points, ChunkyPNG::Color::TRANSPARENT, color) 
       #image.polygon(points, ChunkyPNG::Color.from_hsv(0, 0, 0),ChunkyPNG::Color.from_hsv(0, 0, 1))
     end
-    puts "Saving image to #{filename}"
+    puts "\nSaving image to #{filename}"
     image.save(filename, :interlace => false)
   end
   
@@ -226,7 +249,12 @@ def fromMD5 filename, hash
     r = Hashrander.new(hash)
     hue = r.get_rand 3, 360
     s1 = 0.5 + (r.get_rand 2, 0.5)
-    TilerBuilder.new(filename).set_hue(hue).build
+    s2 = 0.5 + (r.get_rand 2, 0.5 * s1)
+
+    p_x = 0.5 + (r.get_rand 2, 1.15)
+    p_y = 0.5 + (r.get_rand 2, 1.15)
+
+    TilerBuilder.new(filename).set_hue(hue).set_sat_major(s1).set_sat_minor(s2).set_projection_lambda(p_x, p_y).build
 end
 
 class Hashrander
@@ -236,7 +264,12 @@ class Hashrander
   end
 
   def get_rand sample_size, max
-    max * @hash[@hash_i, @hash_i + sample_size].hex/(16**sample_size)
+    i1 = @hash_i % @hash.length
+    i2 = (@hash_i + sample_size) % (@hash.length + 1)
+    @hash_i += sample_size
+
+    ret = max * @hash[i1, sample_size].hex/(16**sample_size)
+    return ret
   end
 end
 
@@ -245,7 +278,11 @@ end
 'dan@3rdrock.uk', 
 'elliot@3rdrock.uk', 
 'pranav@3rdrock.uk', 
-'louis@3rdrock.uk'
+'louis@3rdrock.uk',
+'aan@3rdrock.uk', 
+'alliot@3rdrock.uk', 
+'aranav@3rdrock.uk', 
+'aouis@3rdrock.uk'
 ].each do |input|
 
   md5 = Digest::MD5.new
