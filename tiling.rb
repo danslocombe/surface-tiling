@@ -97,7 +97,7 @@ class Face
   end
 end
 
-class TilerFactory
+class TilerBuilder
 
   def initialize filename
     @hue = 345#rand(360)
@@ -131,7 +131,7 @@ class TilerFactory
     @ticks = ticks
   end
 
-  def create
+  def build
     t = Tiler.new(@image_width, @image_height, @scale, @hue)
     t.tile(@ticks, @filename)
   end
@@ -235,4 +235,4 @@ hue = get_rand 3, 360
 s1 = 0.5 + (get_rand 2, 0.5)
 #s2 = 0.5 + (s1*get_rand 2, 0.5)
 
-TilerFactory.new('out/test2.png').set_hue(10).create
+TilerBuilder.new('out/test2.png').set_hue(10).build
