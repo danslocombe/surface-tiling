@@ -265,11 +265,18 @@ class Hashrander
 
   def get_rand sample_size, max
     i1 = @hash_i % @hash.length
-    i2 = (@hash_i + sample_size) % (@hash.length + 1)
+
+    hash_str = @hash[i1, sample_size]
+
+    # Check if wrap over length
+    rem = i1 + sample_size - @hash.length
+    if rem > 0
+      hash_str << @hash[0, rem]
+    end
+
     @hash_i += sample_size
 
-    ret = max * @hash[i1, sample_size].hex/(16**sample_size)
-    return ret
+    max * hash_str.hex/(16**sample_size)
   end
 end
 
