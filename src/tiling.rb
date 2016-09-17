@@ -1,11 +1,11 @@
 # From here
 # http://www.mathematicians.org.uk/eoh/files/Harriss_ANGASRP.pdf
 
+require './face'
+
 require 'chunky_png'
 require 'matrix'
 require 'digest'
-
-
 
 def min(*values)
  values.min
@@ -15,11 +15,6 @@ def max(*values)
  values.max
 end
 
-A = Matrix[[0, 0, 0, -1],
-           [1, 0, 0, 0],
-           [0, 1, 0, 0],
-           [0, 0, 1, 1]]
-
 def min_max_to_i min, max
   return max - 1 if min == 0
   return 1 + max if min == 1
@@ -28,70 +23,6 @@ end
 $dirmultx = 1
 $dirmulty = 1
 
-class Face
-  def initialize x, axis1, axis2
-    @pos = x
-    @a_min = min(axis1, axis2)
-    @a_max = max(axis1, axis2)
-    # Starting at right anti clockwise
-  end
-
-  def tick
-    ret = nil
-    @pos = A * @pos
-    case @a_min
-    when 0
-      case @a_max
-      when 1
-        @a_min = 1
-        @a_max = 2
-      when 2
-        @a_min = 1
-        @a_max = 3
-      when 3
-        @a_min = 0
-        @a_max = 1
-
-        ret = Face.new(@pos.clone, 1, 3)
-
-        a = @pos.to_a
-        @pos = Vector[a[0] - $dirmultx, a[1], a[2], a[3] + $dirmultx]
-      end
-    when 1
-      case @a_max
-      when 2
-        @a_min = 2
-        @a_max = 3
-      when 3
-        @a_min = 0
-        @a_max = 2
-
-        ret = Face.new(@pos.clone, 2, 3)
-
-        a = @pos.to_a
-        @pos = Vector[a[0] - $dirmultx, a[1], a[2], a[3] + $dirmultx]
-      end
-    when 2
-        @a_min = 0
-        @a_max = 3
-
-        a = @pos.to_a
-        @pos = Vector[a[0] - $dirmultx, a[1], a[2], a[3] + $dirmultx]
-    end
-    return ret
-  end
-
-  def pos
-    @pos
-  end
-
-  def min_axis
-    @a_min
-  end
-  def max_axis
-    @a_max
-  end
-end
 
 class TilerBuilder
 
@@ -155,6 +86,13 @@ end
 
 
 class Tiler
+
+  @@translation_matrix = 
+    Matrix[[0, 0, 0, -1],
+           [1, 0, 0, 0],
+           [0, 1, 0, 0],
+           [0, 0, 1, 1]]
+
   def initialize image_width, image_height, scale, hue, sat_major, sat_minor, projection_lambda
     @h1 = hue
     @h2 = (hue + 360/2) % 360
@@ -199,7 +137,7 @@ class Tiler
       new_list = []
       @all_faces.each do |face|
         new_list << face
-        ret = face.tick
+        ret = face.tick @@translation_matrix
         new_list << ret unless ret.nil?
       end
       @all_faces = new_list
@@ -244,57 +182,4 @@ class Tiler
     image.save(filename, :interlace => false)
   end
   
-end
-def fromMD5 filename, hash
-    r = Hashrander.new(hash)
-    hue = r.get_rand 3, 360
-    s1 = 0.5 + (r.get_rand 2, 0.5)
-    s2 = 0.5 + (r.get_rand 2, 0.5 * s1)
-
-    p_x = 0.5 + (r.get_rand 2, 1.15)
-    p_y = 0.5 + (r.get_rand 2, 1.15)
-
-    TilerBuilder.new(filename).set_hue(hue).set_sat_major(s1).set_sat_minor(s2).set_projection_lambda(p_x, p_y).build
-end
-
-class Hashrander
-  def initialize hash
-    @hash_i = 0
-    @hash = hash
-  end
-
-  def get_rand sample_size, max
-    i1 = @hash_i % @hash.length
-
-    hash_str = @hash[i1, sample_size]
-
-    # Check if wrap over length
-    rem = i1 + sample_size - @hash.length
-    if rem > 0
-      hash_str << @hash[0, rem]
-    end
-
-    @hash_i += sample_size
-
-    max * hash_str.hex/(16**sample_size)
-  end
-end
-
-
-[
-'dan@3rdrock.uk', 
-'elliot@3rdrock.uk', 
-'pranav@3rdrock.uk', 
-'louis@3rdrock.uk',
-'aan@3rdrock.uk', 
-'alliot@3rdrock.uk', 
-'aranav@3rdrock.uk', 
-'aouis@3rdrock.uk'
-].each do |input|
-
-  md5 = Digest::MD5.new
-  md5 << input
-  hash = md5.hexdigest
-
-  fromMD5 "out/hash/hash_#{hash}.png", hash
 end
